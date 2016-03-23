@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+
+{%block button%}
+<li role="presentation"><a>{{nick}}</a></li>
+<li role="presentation"><a href="/logout">登出</a></li>
+{% endblock %}
+
+
+{% block mainblock %}
+<div>
+<button class='btn btn-info'>积极：{{pos}}</button>
+<button class='btn btn-warning'>消极：{{neg}}</button>
+<span style="color:#777777;padding-left:100px">腾讯文智API提供结果</span>
+</div>
+{% for item in items %}
+{% if item[0] == 0 %}
+    <div class="bs-callout bs-callout-info"> 
+{% else %}
+    <div class="bs-callout bs-callout-warning"> 
+{% endif %}
+        <h4>{{ item[1] }}</h4>
+    </div>
+{% endfor %}
+
+{% endblock %}
