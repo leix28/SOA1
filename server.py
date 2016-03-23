@@ -5,7 +5,7 @@ CLIENT_SECRET = '6ee8bcede254b9966ee84c5144022cdb'
 TENCENT_SECRETID = 'AKIDqIVL3LqtftH97cnkzbdFHw2VY3SLPRbQ'
 TENCENT_SECRETKEY = 'ZSG9wtIInoVIke4P3DPh8lwOuKvI7Ftf'
 SESSION_KEY = 'Baf-GYU-YU1-40A'
-URL = 'app.citr.me:5000/'
+URL = 'app.citr.me/'
 DATABASE = 'data.db'
 
 '''
@@ -183,4 +183,4 @@ def getemotion(uid):
 
 if __name__ == '__main__':
 
-    app.run(host="0.0.0.0", debug=True)
+    app.run(host="0.0.0.0", port=80)
