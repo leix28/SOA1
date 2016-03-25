@@ -77,7 +77,6 @@ def auth():
             user = json.loads(user)
             session['uid'] = user['uid']
             session['token'] = user['access_token']
-            session['expire'] = int(time.time()) + int(user['expires_in']) - 60
             return redirect('/proc')
         except:
             return redirect('/error')
@@ -85,10 +84,6 @@ def auth():
 
 @app.route('/proc')
 def proc():
-    # if 'last' in session and session['last'] + 300 <= time.time():
-    #     return redirect('/show')
-    # session['last'] = time.time()
-
     try:
         data = requests.get('https://api.weibo.com/2/statuses/user_timeline.json?access_token=%s'%session['token'], timeout=3).content
         decoded = json.loads(data)['statuses']
