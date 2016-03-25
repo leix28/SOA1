@@ -62,8 +62,6 @@ def err():
 
 @app.route('/')
 def index():
-    if 'expire' in session and session['expire'] < time.time():
-        return redirect('/proc')
     return render_template('index.html')
 
 @app.route('/login')
@@ -74,12 +72,15 @@ def login():
 def auth():
     args = request.args
     if 'code' in args:
-        user =  requests.post('https://api.weibo.com/oauth2/access_token?client_id=%s&client_secret=%s&grant_type=authorization_code&redirect_uri=%s&code=%s' % (CLIENT_ID, CLIENT_SECRET, URL + 'auth', args.get('code'))).content
-        user = json.loads(user)
-        session['uid'] = user['uid']
-        session['token'] = user['access_token']
-        session['expire'] = int(time.time()) + int(user['expires_in']) - 60
-        return redirect('/proc')
+        try:
+            user =  requests.post('https://api.weibo.com/oauth2/access_token?client_id=%s&client_secret=%s&grant_type=authorization_code&redirect_uri=%s&code=%s' % (CLIENT_ID, CLIENT_SECRET, URL + 'auth', args.get('code')), timeout=3).content
+            user = json.loads(user)
+            session['uid'] = user['uid']
+            session['token'] = user['access_token']
+            session['expire'] = int(time.time()) + int(user['expires_in']) - 60
+            return redirect('/proc')
+        except:
+            return redirect('/error')
     return redirect('/')
 
 @app.route('/proc')
@@ -88,12 +89,15 @@ def proc():
     #     return redirect('/show')
     # session['last'] = time.time()
 
-    data = requests.get('https://api.weibo.com/2/statuses/user_timeline.json?access_token=%s'%session['token']).content
-    decoded = json.loads(data)
+    try:
+        data = requests.get('https://api.weibo.com/2/statuses/user_timeline.json?access_token=%s'%session['token'], timeout=3).content
+        decoded = json.loads(data)['statuses']
+    except:
+        return redirect('/error')
     db = get_db()
 
     cattxt = u'中立'
-    for item in decoded['statuses']:
+    for item in decoded:
         cattxt += item['text']
         idx = str(item['id'])
         cur = db.execute('SELECT COUNT(*) FROM weibo WHERE wid = ?', (idx, ))
@@ -102,8 +106,12 @@ def proc():
             continue
         cur = db.execute('INSERT INTO weibo VALUES (?, ?, ?, ?)', (session['uid'], idx, item['text'], item['created_at']))
 
-    data = requests.get('https://api.weibo.com/2/users/show.json?access_token=%s&uid=%s'%(session['token'], session['uid'])).content
-    nick = json.loads(data)['screen_name']
+    try:
+        data = requests.get('https://api.weibo.com/2/users/show.json?access_token=%s&uid=%s'%(session['token'], session['uid']), timeout=3).content
+        nick = json.loads(data)['screen_name']
+    except:
+        db.commit()
+        return redirect('/error')
 
     param = {
         'Action':'TextSentiment',
@@ -114,10 +122,14 @@ def proc():
         'content':cattxt.encode('utf8')
     }
     param['Signature'] = genTencentSign(param)
-    data = requests.post('https://wenzhi.api.qcloud.com/v2/index.php', data=param)
+    try:
+        data = requests.post('https://wenzhi.api.qcloud.com/v2/index.php', timeout=3, data=param).content
+    except:
+        db.commit()
+        return redirect('/error')
 
     cur = db.execute('DELETE FROM user where id = ?', (session['uid'], ))
-    cur = db.execute('INSERT INTO user VALUES (?, ?, ?)', (session['uid'], data.content, nick))
+    cur = db.execute('INSERT INTO user VALUES (?, ?, ?)', (session['uid'], data, nick))
     db.commit()
     cur.close()
     return redirect('/show')
@@ -132,9 +144,13 @@ def show():
     cur.close()
     idx = []
     rv = map(lambda x: x[0], rv)
-    posneg = json.loads(user[1])
-    pos = "%.1f" % (float(posneg['positive']) * 100)
-    neg = "%.1f" % (float(posneg['negative']) * 100)
+    try:
+        posneg = json.loads(user[1])
+        pos = "%.1f" % (float(posneg['positive']) * 100)
+        neg = "%.1f" % (float(posneg['negative']) * 100)
+    except:
+        pos = "0"
+        neg = "0"
     for i in xrange(len(rv)):
         idx.append(i % 2)
     return render_template('show.html', pos=pos, neg=neg, nick=user[2], items = zip(idx, rv))
@@ -174,9 +190,13 @@ def getemotion(uid):
     if (user == None):
         return json.dumps({"ERROR":"UID invalid"})
 
-    posneg = json.loads(user[0])
-    pos = "%.1f" % (float(posneg['positive']) * 100)
-    neg = "%.1f" % (float(posneg['negative']) * 100)
+    try:
+        posneg = json.loads(user[0])
+        pos = "%.1f" % (float(posneg['positive']) * 100)
+        neg = "%.1f" % (float(posneg['negative']) * 100)
+    except:
+        pos = "0"
+        neg = "0"
 
     return json.dumps({'uid':uid, 'positive':pos, 'negative':neg})
 
